@@ -1,4 +1,4 @@
-module github.com/golang-diasoft/hw01_hello_diasoft
+module github.com/golang-diasoft-vseroev/hw01_hello_diasoft
 
 go 1.18
 
