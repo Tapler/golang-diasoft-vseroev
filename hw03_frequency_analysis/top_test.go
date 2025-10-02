@@ -79,4 +79,51 @@ func TestTop10(t *testing.T) {
 			require.Equal(t, expected, Top10(text))
 		}
 	})
+
+	t.Run("single word", func(t *testing.T) {
+		result := Top10("test")
+		require.Len(t, result, 1)
+		require.Equal(t, "test", result[0])
+	})
+
+	t.Run("repeated word", func(t *testing.T) {
+		result := Top10("test test test")
+		require.Len(t, result, 1)
+		require.Equal(t, "test", result[0])
+	})
+
+	t.Run("lexicographic order with same frequency", func(t *testing.T) {
+		text := "test apple banana test apple banana"
+		result := Top10(text)
+		require.Len(t, result, 3)
+		// Все слова встречаются по 2 раза, сортируются лексикографически
+		expected := []string{"apple", "banana", "test"}
+		require.Equal(t, expected, result)
+	})
+
+	t.Run("case sensitivity", func(t *testing.T) {
+		text := "Apple apple APPLE"
+		result := Top10(text)
+		require.Len(t, result, 3)
+		expected := []string{"APPLE", "Apple", "apple"}
+		require.Equal(t, expected, result)
+	})
+
+	t.Run("punctuation marks", func(t *testing.T) {
+		text := "hello, hello world world!"
+		result := Top10(text)
+		require.Len(t, result, 4)
+		// Знаки препинания считаются частью слова
+		expected := []string{"hello", "hello,", "world", "world!"}
+		require.Equal(t, expected, result)
+	})
+
+	t.Run("multiple spaces and newlines", func(t *testing.T) {
+		text := "test1   test2\n\ntest3\ttest1"
+		result := Top10(text)
+		require.Len(t, result, 3)
+		// word1 встречается 2 раза, остальные по 1
+		expected := []string{"test1", "test2", "test3"}
+		require.Equal(t, expected, result)
+	})
 }
