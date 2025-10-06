@@ -48,4 +48,92 @@ func TestList(t *testing.T) {
 		}
 		require.Equal(t, []int{70, 80, 60, 40, 10, 30, 50}, elems)
 	})
+
+	t.Run("remove single element", func(t *testing.T) {
+		l := NewList()
+
+		item := l.PushFront(10)
+		require.Equal(t, 1, l.Len())
+		require.Equal(t, 10, l.Front().Value)
+		require.Equal(t, 10, l.Back().Value)
+
+		l.Remove(item)
+		require.Equal(t, 0, l.Len())
+		require.Nil(t, l.Front())
+		require.Nil(t, l.Back())
+	})
+
+	t.Run("remove first element", func(t *testing.T) {
+		l := NewList()
+
+		l.PushBack(10)
+		l.PushBack(20)
+		l.PushBack(30) // [10, 20, 30]
+		require.Equal(t, 3, l.Len())
+
+		l.Remove(l.Front()) // [20, 30]
+		require.Equal(t, 2, l.Len())
+		require.Equal(t, 20, l.Front().Value)
+		require.Equal(t, 30, l.Back().Value)
+	})
+
+	t.Run("remove last element", func(t *testing.T) {
+		l := NewList()
+
+		l.PushBack(10)
+		l.PushBack(20)
+		l.PushBack(30) // [10, 20, 30]
+		require.Equal(t, 3, l.Len())
+
+		l.Remove(l.Back()) // [10, 20]
+		require.Equal(t, 2, l.Len())
+		require.Equal(t, 10, l.Front().Value)
+		require.Equal(t, 20, l.Back().Value)
+	})
+
+	t.Run("move to front already front", func(t *testing.T) {
+		l := NewList()
+
+		l.PushBack(10)
+		l.PushBack(20)
+		l.PushBack(30) // [10, 20, 30]
+
+		frontItem := l.Front()
+		l.MoveToFront(frontItem) // [10, 20, 30]
+
+		// Порядок не должен измениться
+		require.Equal(t, 10, l.Front().Value)
+		require.Equal(t, 30, l.Back().Value)
+		require.Equal(t, 3, l.Len())
+	})
+
+	t.Run("push and remove multiple", func(t *testing.T) {
+		l := NewList()
+
+		item1 := l.PushFront(1)
+		item2 := l.PushFront(2)
+		item3 := l.PushBack(3)
+		item4 := l.PushBack(4) // [1, 2, 3, 4]
+
+		require.Equal(t, 4, l.Len())
+
+		// Удаляем элементы в разном порядке
+		l.Remove(item2) // [1, 3, 4]
+		require.Equal(t, 3, l.Len())
+		require.Equal(t, 1, l.Front().Value)
+
+		l.Remove(item4) // [1, 3]
+		require.Equal(t, 2, l.Len())
+		require.Equal(t, 3, l.Back().Value)
+
+		l.Remove(item1) // [3]
+		require.Equal(t, 1, l.Len())
+		require.Equal(t, 3, l.Front().Value)
+		require.Equal(t, 3, l.Back().Value)
+
+		l.Remove(item3) // []
+		require.Equal(t, 0, l.Len())
+		require.Nil(t, l.Front())
+		require.Nil(t, l.Back())
+	})
 }
