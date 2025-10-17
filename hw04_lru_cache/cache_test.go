@@ -50,7 +50,96 @@ func TestCache(t *testing.T) {
 	})
 
 	t.Run("purge logic", func(t *testing.T) {
-		// Write me
+		// Тест на выталкивание элементов из-за размера очереди
+		c := NewCache(3)
+
+		c.Set("a", 1)
+		c.Set("b", 2)
+		c.Set("c", 3)
+
+		// Все элементы должны быть в кэше
+		val, ok := c.Get("a")
+		require.True(t, ok)
+		require.Equal(t, 1, val)
+
+		val, ok = c.Get("b")
+		require.True(t, ok)
+		require.Equal(t, 2, val)
+
+		val, ok = c.Get("c")
+		require.True(t, ok)
+		require.Equal(t, 3, val)
+
+		// Добавляем 4-й элемент - первый должен вытолкнуться
+		c.Set("d", 4)
+
+		// Элемент "a" должен быть вытолкнут
+		_, ok = c.Get("a")
+		require.False(t, ok)
+
+		// Остальные элементы должны быть в кэше
+		val, ok = c.Get("b")
+		require.True(t, ok)
+		require.Equal(t, 2, val)
+
+		val, ok = c.Get("c")
+		require.True(t, ok)
+		require.Equal(t, 3, val)
+
+		val, ok = c.Get("d")
+		require.True(t, ok)
+		require.Equal(t, 4, val)
+	})
+
+	t.Run("purge least recently used", func(t *testing.T) {
+		c := NewCache(3)
+
+		c.Set("a", 1)
+		c.Set("b", 2)
+		c.Set("c", 3)
+
+		// Обращаемся к элементам в разном порядке
+		c.Get("a")     // a становится самым свежим
+		c.Set("b", 20) // b обновляется и становится самым свежим
+		c.Get("a")     // a снова становится самым свежим
+
+		// Добавляем новый элемент - c должен вытолкнуться
+		c.Set("d", 4)
+		_, ok := c.Get("c")
+		require.False(t, ok)
+
+		// Остальные элементы должны быть в кэше
+		val, ok := c.Get("a")
+		require.True(t, ok)
+		require.Equal(t, 1, val)
+
+		val, ok = c.Get("b")
+		require.True(t, ok)
+		require.Equal(t, 20, val)
+
+		val, ok = c.Get("d")
+		require.True(t, ok)
+		require.Equal(t, 4, val)
+	})
+
+	t.Run("clear cache", func(t *testing.T) {
+		c := NewCache(3)
+
+		c.Set("a", 1)
+		c.Set("b", 2)
+		c.Set("c", 3)
+
+		c.Clear()
+
+		// Все элементы должны быть удалены
+		_, ok := c.Get("a")
+		require.False(t, ok)
+
+		_, ok = c.Get("b")
+		require.False(t, ok)
+
+		_, ok = c.Get("c")
+		require.False(t, ok)
 	})
 }
 
