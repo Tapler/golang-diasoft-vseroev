@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
 )
 
 var (
@@ -18,5 +20,23 @@ func init() {
 
 func main() {
 	flag.Parse()
-	// Place your code here.
+
+	// Проверяем обязательные параметры
+	if from == "" {
+		fmt.Fprintln(os.Stderr, "Error: -from parameter is required")
+		os.Exit(1)
+	}
+
+	if to == "" {
+		fmt.Fprintln(os.Stderr, "Error: -to parameter is required")
+		os.Exit(1)
+	}
+
+	err := Copy(from, to, offset, limit)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("Copy completed successfully")
 }
