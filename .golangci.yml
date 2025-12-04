@@ -3,6 +3,7 @@ run:
   build-tags:
     - bench
     - !bench
+  go: '1.19'
 
 linters-settings:
   funlen:
