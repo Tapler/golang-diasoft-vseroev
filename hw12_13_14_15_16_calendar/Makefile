@@ -23,12 +23,17 @@ version: build
 	$(BIN) version
 
 test:
-	go test -race ./internal/... ./pkg/...
+	go test -v -count=1 -race -timeout=1m ./internal/...
 
 install-lint-deps:
 	(which golangci-lint > /dev/null) || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.50.1
 
-lint: install-lint-deps
-	golangci-lint run ./...
+lint:
+	GOROOT=$(shell go env GOROOT) golangci-lint run ./...
 
-.PHONY: build run build-img run-img version test lint
+migrate:
+	@echo "Applying migrations..."
+	@which goose > /dev/null || (echo "goose not installed. Run: go install github.com/pressly/goose/v3/cmd/goose@latest" && exit 1)
+	cd migrations && goose postgres "postgres://calendar:calendar@localhost:5432/calendar?sslmode=disable" up
+
+.PHONY: build run build-img run-img version test install-lint-deps lint migrate
