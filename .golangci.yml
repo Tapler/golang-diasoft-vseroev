@@ -35,7 +35,6 @@ linters:
     - gci
     - gocognit
     - goconst
-    - gocritic
     - gocyclo
     - godot
     - gofmt
