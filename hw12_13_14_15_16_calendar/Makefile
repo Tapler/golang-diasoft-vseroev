@@ -28,8 +28,8 @@ test:
 install-lint-deps:
 	(which golangci-lint > /dev/null) || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.50.1
 
-lint:
-	GOROOT=$(shell go env GOROOT) golangci-lint run ./...
+lint: install-lint-deps
+	golangci-lint run ./...
 
 migrate:
 	@echo "Applying migrations..."

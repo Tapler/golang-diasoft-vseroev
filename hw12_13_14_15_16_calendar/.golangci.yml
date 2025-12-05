@@ -3,7 +3,7 @@ run:
   build-tags:
     - bench
     - !bench
-  go: '1.25'
+  go: '1.19'
 
 linters-settings:
   funlen:
@@ -35,6 +35,7 @@ linters:
     - gci
     - gocognit
     - goconst
+    - gocritic
     - gocyclo
     - godot
     - gofmt
