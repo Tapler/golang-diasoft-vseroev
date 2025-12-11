@@ -20,9 +20,9 @@ const testEventID = "550e8400-e29b-41d4-a716-446655440000"
 // MockLogger реализует интерфейс Logger для тестов.
 type MockLogger struct{}
 
-func (m *MockLogger) Info(msg string)  {}
-func (m *MockLogger) Error(msg string) {}
-func (m *MockLogger) Debug(msg string) {}
+func (m *MockLogger) Info(_ string)  {}
+func (m *MockLogger) Error(_ string) {}
+func (m *MockLogger) Debug(_ string) {}
 
 // MockApp реализует интерфейс CalendarApplication для тестов.
 type MockApp struct {
