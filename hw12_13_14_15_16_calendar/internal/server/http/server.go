@@ -4,13 +4,15 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
 type Server struct {
-	logger Logger
-	app    Application
-	server *http.Server
+	logger   Logger
+	app      CalendarApplication
+	handlers *CalendarHandlers
+	server   *http.Server
 }
 
 type Logger interface {
@@ -19,17 +21,22 @@ type Logger interface {
 	Debug(msg string)
 }
 
-type Application interface {
-	// Методы бизнес-логики будут добавлены позже
-}
-
-func NewServer(logger Logger, app Application, host, port string) *Server {
+func NewServer(logger Logger, app CalendarApplication, host, port string) *Server {
 	s := &Server{
-		logger: logger,
-		app:    app,
+		logger:   logger,
+		app:      app,
+		handlers: NewCalendarHandlers(logger, app),
 	}
 
 	mux := http.NewServeMux()
+
+	// Регистрация API эндпоинтов
+	mux.HandleFunc("/api/v1/events", s.eventsHandler)
+	mux.HandleFunc("/api/v1/events/", s.eventsWithIDHandler)
+	mux.HandleFunc("/api/v1/events/day/", s.handlers.ListEventsForDay)
+	mux.HandleFunc("/api/v1/events/week/", s.handlers.ListEventsForWeek)
+	mux.HandleFunc("/api/v1/events/month/", s.handlers.ListEventsForMonth)
+
 	mux.HandleFunc("/hello", s.helloHandler)
 
 	// Оборачиваем в middleware для логирования
@@ -44,6 +51,52 @@ func NewServer(logger Logger, app Application, host, port string) *Server {
 	}
 
 	return s
+}
+
+// eventsHandler обрабатывает POST /api/v1/events.
+func (s *Server) eventsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/api/v1/events" {
+		http.NotFound(w, r)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodPost:
+		s.handlers.CreateEvent(w, r)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// eventsWithIDHandler обрабатывает GET/PUT/DELETE /api/v1/events/{id}.
+func (s *Server) eventsWithIDHandler(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+
+	// Проверяем, что это не эндпоинты day/week/month
+	if strings.HasPrefix(path, "/api/v1/events/day/") ||
+		strings.HasPrefix(path, "/api/v1/events/week/") ||
+		strings.HasPrefix(path, "/api/v1/events/month/") {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Проверяем, что есть ID после /api/v1/events/
+	id := strings.TrimPrefix(path, "/api/v1/events/")
+	if id == "" || id == "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		s.handlers.GetEvent(w, r)
+	case http.MethodPut:
+		s.handlers.UpdateEvent(w, r)
+	case http.MethodDelete:
+		s.handlers.DeleteEvent(w, r)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func (s *Server) Start(ctx context.Context) error {

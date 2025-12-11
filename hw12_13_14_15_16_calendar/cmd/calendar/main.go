@@ -3,15 +3,18 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_calendar/internal/app"
-	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_calendar/internal/logger"
-	internalhttp "github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_calendar/internal/server/http"
-	memorystorage "github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_calendar/internal/storage/memory"
+	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/app"
+	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/logger"
+	internalhttp "github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/server/http"
+	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/storage"
+	memorystorage "github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/storage/memory"
+	sqlstorage "github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/storage/sql"
 )
 
 var configFile string
@@ -35,8 +38,33 @@ func main() {
 
 	logg := logger.New(config.Logger.Level)
 
-	storage := memorystorage.New()
-	calendar := app.New(logg, storage)
+	// Создание storage на основе конфигурации
+	var stor storage.Storage
+	switch config.Database.Type {
+	case "sql":
+		logg.Info(fmt.Sprintf("Initializing SQL storage with DSN: %s", config.Database.DSN))
+		sqlStor, err := sqlstorage.New(config.Database.DSN)
+		if err != nil {
+			logg.Error(fmt.Sprintf("Failed to create SQL storage: %v", err))
+			panic("failed to create SQL storage: " + err.Error())
+		}
+
+		// Подключение к БД
+		connCtx := context.Background()
+		if err := sqlStor.Connect(connCtx); err != nil {
+			logg.Error(fmt.Sprintf("Failed to connect to database: %v", err))
+			panic("failed to connect to database: " + err.Error())
+		}
+		logg.Info("Successfully connected to SQL database")
+		stor = sqlStor
+	case "memory":
+		logg.Info("Initializing in-memory storage")
+		stor = memorystorage.New()
+	default:
+		panic(fmt.Sprintf("unknown storage type: %s", config.Database.Type))
+	}
+
+	calendar := app.New(logg, stor)
 
 	server := internalhttp.NewServer(logg, calendar, config.HTTP.Host, config.HTTP.Port)
 
@@ -50,8 +78,18 @@ func main() {
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second*3)
 		defer shutdownCancel()
 
+		// Останавливаем HTTP сервер
 		if err := server.Stop(shutdownCtx); err != nil {
 			logg.Error("failed to stop http server: " + err.Error())
+		}
+
+		// Закрываем соединение с БД (если это SQL storage)
+		if sqlStor, ok := stor.(*sqlstorage.Storage); ok {
+			if err := sqlStor.Close(shutdownCtx); err != nil {
+				logg.Error("failed to close storage: " + err.Error())
+			} else {
+				logg.Info("Storage closed successfully")
+			}
 		}
 	}()
 
