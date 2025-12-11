@@ -1,0 +1,433 @@
+openapi: 3.0.3
+info:
+  title: Calendar API
+  description: REST API для сервиса календаря
+  version: 1.0.0
+  contact:
+    name: Calendar Service
+    email: support@calendar.local
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+
+paths:
+  /api/v1/events:
+    post:
+      summary: Создать событие
+      description: Добавляет новое событие в календарь
+      operationId: createEvent
+      tags:
+        - events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          description: Событие успешно создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Дата занята
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/events/{id}:
+    get:
+      summary: Получить событие по ID
+      description: Возвращает событие по его уникальному идентификатору
+      operationId: getEvent
+      tags:
+        - events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Уникальный идентификатор события
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Событие найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+        '404':
+          description: Событие не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Обновить событие
+      description: Обновляет существующее событие
+      operationId: updateEvent
+      tags:
+        - events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Уникальный идентификатор события
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEventRequest'
+      responses:
+        '200':
+          description: Событие успешно обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Событие не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Дата занята
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Удалить событие
+      description: Удаляет событие по его идентификатору
+      operationId: deleteEvent
+      tags:
+        - events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Уникальный идентификатор события
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Событие успешно удалено
+        '404':
+          description: Событие не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/events/day/{date}:
+    get:
+      summary: Получить события на день
+      description: Возвращает список событий на указанную дату
+      operationId: listEventsForDay
+      tags:
+        - events
+      parameters:
+        - name: date
+          in: path
+          required: true
+          description: Дата в формате YYYY-MM-DD
+          schema:
+            type: string
+            format: date
+          example: "2025-12-11"
+      responses:
+        '200':
+          description: Список событий
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+        '400':
+          description: Некорректный формат даты
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/events/week/{date}:
+    get:
+      summary: Получить события на неделю
+      description: Возвращает список событий на неделю начиная с указанной даты
+      operationId: listEventsForWeek
+      tags:
+        - events
+      parameters:
+        - name: date
+          in: path
+          required: true
+          description: Дата начала недели в формате YYYY-MM-DD
+          schema:
+            type: string
+            format: date
+          example: "2025-12-11"
+      responses:
+        '200':
+          description: Список событий
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+        '400':
+          description: Некорректный формат даты
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/events/month/{date}:
+    get:
+      summary: Получить события на месяц
+      description: Возвращает список событий на месяц начиная с указанной даты
+      operationId: listEventsForMonth
+      tags:
+        - events
+      parameters:
+        - name: date
+          in: path
+          required: true
+          description: Дата начала месяца в формате YYYY-MM-DD
+          schema:
+            type: string
+            format: date
+          example: "2025-12-01"
+      responses:
+        '200':
+          description: Список событий
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+        '400':
+          description: Некорректный формат даты
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CreateEventRequest:
+      type: object
+      required:
+        - title
+        - start_time
+        - duration
+        - user_id
+      properties:
+        title:
+          type: string
+          description: Короткий текст заголовка
+          minLength: 1
+          maxLength: 200
+          example: "Встреча с командой"
+        start_time:
+          type: string
+          format: date-time
+          description: Дата и время начала события
+          example: "2025-12-11T14:00:00Z"
+        duration:
+          type: integer
+          format: int64
+          description: Длительность события в секундах
+          minimum: 60
+          maximum: 86400
+          example: 3600
+        description:
+          type: string
+          description: Длинный текст описания (опционально)
+          maxLength: 2000
+          example: "Обсуждение планов на следующий квартал"
+        user_id:
+          type: integer
+          format: int64
+          description: ID пользователя, владельца события
+          minimum: 1
+          example: 123
+        notify_before:
+          type: integer
+          format: int64
+          description: За сколько времени высылать уведомление в секундах (опционально)
+          minimum: 0
+          maximum: 2592000
+          example: 3600
+
+    UpdateEventRequest:
+      type: object
+      required:
+        - title
+        - start_time
+        - duration
+        - user_id
+      properties:
+        title:
+          type: string
+          description: Короткий текст заголовка
+          minLength: 1
+          maxLength: 200
+          example: "Встреча с командой (обновлено)"
+        start_time:
+          type: string
+          format: date-time
+          description: Дата и время начала события
+          example: "2025-12-11T15:00:00Z"
+        duration:
+          type: integer
+          format: int64
+          description: Длительность события в секундах
+          minimum: 60
+          maximum: 86400
+          example: 7200
+        description:
+          type: string
+          description: Длинный текст описания (опционально)
+          maxLength: 2000
+          example: "Обсуждение планов на следующий квартал и текущих задач"
+        user_id:
+          type: integer
+          format: int64
+          description: ID пользователя, владельца события
+          minimum: 1
+          example: 123
+        notify_before:
+          type: integer
+          format: int64
+          description: За сколько времени высылать уведомление в секундах (опционально)
+          minimum: 0
+          maximum: 2592000
+          example: 7200
+
+    EventResponse:
+      type: object
+      required:
+        - id
+        - title
+        - start_time
+        - duration
+        - user_id
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор события
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        title:
+          type: string
+          description: Короткий текст заголовка
+          example: "Встреча с командой"
+        start_time:
+          type: string
+          format: date-time
+          description: Дата и время начала события
+          example: "2025-12-11T14:00:00Z"
+        duration:
+          type: integer
+          format: int64
+          description: Длительность события в секундах
+          example: 3600
+        description:
+          type: string
+          description: Длинный текст описания
+          example: "Обсуждение планов на следующий квартал"
+        user_id:
+          type: integer
+          format: int64
+          description: ID пользователя, владельца события
+          example: 123
+        notify_before:
+          type: integer
+          format: int64
+          description: За сколько времени высылать уведомление в секундах
+          example: 3600
+
+    EventListResponse:
+      type: object
+      required:
+        - events
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventResponse'
+          description: Список событий
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Описание ошибки
+          example: "event not found"
