@@ -8,10 +8,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fixme_my_friend/hw12_13_14_15_16_calendar/internal/app"
-	"github.com/fixme_my_friend/hw12_13_14_15_16_calendar/internal/logger"
-	internalhttp "github.com/fixme_my_friend/hw12_13_14_15_16_calendar/internal/server/http"
-	memorystorage "github.com/fixme_my_friend/hw12_13_14_15_16_calendar/internal/storage/memory"
+	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_calendar/internal/app"
+	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_calendar/internal/logger"
+	internalhttp "github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_calendar/internal/server/http"
+	memorystorage "github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_calendar/internal/storage/memory"
 )
 
 var configFile string
@@ -28,13 +28,17 @@ func main() {
 		return
 	}
 
-	config := NewConfig()
+	config, err := NewConfig(configFile)
+	if err != nil {
+		panic("failed to load config: " + err.Error())
+	}
+
 	logg := logger.New(config.Logger.Level)
 
 	storage := memorystorage.New()
 	calendar := app.New(logg, storage)
 
-	server := internalhttp.NewServer(logg, calendar)
+	server := internalhttp.NewServer(logg, calendar, config.HTTP.Host, config.HTTP.Port)
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
@@ -43,10 +47,10 @@ func main() {
 	go func() {
 		<-ctx.Done()
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-		defer cancel()
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second*3)
+		defer shutdownCancel()
 
-		if err := server.Stop(ctx); err != nil {
+		if err := server.Stop(shutdownCtx); err != nil {
 			logg.Error("failed to stop http server: " + err.Error())
 		}
 	}()

@@ -1,5 +1,10 @@
 [logger]
 level = "INFO"
 
-# TODO
-# ...
+[http]
+host = "localhost"
+port = "8080"
+
+[database]
+type = "memory"  # "memory" или "sql"
+# dsn = "postgres://calendar:calendar@localhost:5432/calendar?sslmode=disable"
