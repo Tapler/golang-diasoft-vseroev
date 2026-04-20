@@ -1,0 +1,10 @@
+package: api
+output: generated.go
+generate:
+  models: true
+  client: false
+  server: false
+  types: true
+output-options:
+  skip-fmt: false
+  skip-prune: false
