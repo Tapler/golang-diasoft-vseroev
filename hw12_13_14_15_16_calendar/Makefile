@@ -56,4 +56,36 @@ migrate:
 	@which goose > /dev/null || (echo "goose not installed. Run: go install github.com/pressly/goose/v3/cmd/goose@latest" && exit 1)
 	cd migrations && goose postgres "postgres://calendar:calendar@localhost:5432/calendar?sslmode=disable" up
 
-.PHONY: build run run-scheduler run-storer build-img run-img version test install-lint-deps lint migrate gen-api install-gen-deps
+# Docker команды
+up:
+	@echo "Starting all services with docker-compose..."
+	docker-compose -f deployments/docker-compose.yml up -d
+	@echo "Services started. Calendar API available at http://localhost:8080"
+
+down:
+	@echo "Stopping all services..."
+	docker-compose -f deployments/docker-compose.yml down
+	@echo "Services stopped"
+
+logs:
+	docker-compose -f deployments/docker-compose.yml logs -f
+
+# Интеграционные тесты
+integration-tests:
+	@echo "Running integration tests..."
+	@docker-compose -f deployments/docker-compose.test.yml up --no-build -d
+	@echo "Waiting for integration tests to complete..."
+	@docker wait calendar-integration-tests || EXIT_CODE=$$?; \
+	echo "Collecting test logs..."; \
+	docker logs calendar-integration-tests; \
+	echo "Cleaning up test environment..."; \
+	docker-compose -f deployments/docker-compose.test.yml down -v; \
+	if [ "$$EXIT_CODE" = "0" ] || [ -z "$$EXIT_CODE" ]; then \
+		echo "Integration tests passed!"; \
+		exit 0; \
+	else \
+		echo "Integration tests failed with exit code $$EXIT_CODE"; \
+		exit $$EXIT_CODE; \
+	fi
+
+.PHONY: build run run-scheduler run-storer build-img run-img version test install-lint-deps lint migrate gen-api install-gen-deps up down logs integration-tests

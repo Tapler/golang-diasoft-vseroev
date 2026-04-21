@@ -3,69 +3,60 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: calendar-postgres
+    container_name: calendar-test-postgres
     environment:
       POSTGRES_USER: calendar
       POSTGRES_PASSWORD: calendar
       POSTGRES_DB: calendar
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U calendar"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
     networks:
-      - calendar-network
+      - test-network
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
-    container_name: calendar-zookeeper
+    container_name: calendar-test-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - "2181:2181"
     networks:
-      - calendar-network
+      - test-network
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
-    container_name: calendar-kafka
+    container_name: calendar-test-kafka
     depends_on:
       - zookeeper
-    ports:
-      - "9092:9092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     healthcheck:
       test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
-      interval: 10s
+      interval: 5s
       timeout: 10s
-      retries: 5
+      retries: 10
     networks:
-      - calendar-network
+      - test-network
 
   migrations:
     image: alpine:3.18
-    container_name: calendar-migrations
+    container_name: calendar-test-migrations
+    restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
       - ../migrations:/migrations
     networks:
-      - calendar-network
+      - test-network
     command: >
       sh -c "
         apk add --no-cache postgresql-client curl &&
@@ -77,31 +68,26 @@ services:
     build:
       context: ..
       dockerfile: build/Dockerfile
-      args:
-        LDFLAGS: "-X main.release=docker"
-    container_name: calendar-api
+    container_name: calendar-test-api
+    restart: on-failure
     depends_on:
       postgres:
         condition: service_healthy
       migrations:
         condition: service_completed_successfully
-    ports:
-      - "8080:8080"
     volumes:
       - ../configs/config.docker.toml:/etc/calendar/config.toml:ro
     environment:
       CONFIG_FILE: /etc/calendar/config.toml
     networks:
-      - calendar-network
-    restart: unless-stopped
+      - test-network
 
   scheduler:
     build:
       context: ..
       dockerfile: build/Dockerfile.scheduler
-      args:
-        LDFLAGS: "-X main.release=docker"
-    container_name: calendar-scheduler
+    container_name: calendar-test-scheduler
+    restart: on-failure
     depends_on:
       postgres:
         condition: service_healthy
@@ -114,16 +100,14 @@ services:
     environment:
       CONFIG_FILE: /etc/calendar/scheduler_config.toml
     networks:
-      - calendar-network
-    restart: unless-stopped
+      - test-network
 
   storer:
     build:
       context: ..
       dockerfile: build/Dockerfile.storer
-      args:
-        LDFLAGS: "-X main.release=docker"
-    container_name: calendar-storer
+    container_name: calendar-test-storer
+    restart: on-failure
     depends_on:
       postgres:
         condition: service_healthy
@@ -136,12 +120,28 @@ services:
     environment:
       CONFIG_FILE: /etc/calendar/storer_config.toml
     networks:
-      - calendar-network
-    restart: unless-stopped
+      - test-network
 
-volumes:
-  postgres-data:
+  integration-tests:
+    build:
+      context: ../tests/integration
+      dockerfile: Dockerfile
+    container_name: calendar-integration-tests
+    depends_on:
+      calendar:
+        condition: service_started
+      scheduler:
+        condition: service_started
+      storer:
+        condition: service_started
+    environment:
+      CALENDAR_API_URL: "http://calendar:8080"
+      DATABASE_DSN: "postgres://calendar:calendar@postgres:5432/calendar?sslmode=disable"
+    volumes:
+      - ../tests/integration/integration_test.go:/tests/integration_test.go:ro
+    networks:
+      - test-network
 
 networks:
-  calendar-network:
+  test-network:
     driver: bridge
