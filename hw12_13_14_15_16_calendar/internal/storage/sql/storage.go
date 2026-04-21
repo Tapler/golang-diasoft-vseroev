@@ -267,3 +267,69 @@ func eventToDBEvent(event *storage.Event) *dbEvent {
 		NotifyBefore: int64(event.NotifyBefore.Seconds()),
 	}
 }
+
+// GetEventsToNotify возвращает события, о которых нужно отправить уведомление.
+func (s *Storage) GetEventsToNotify(ctx context.Context, now time.Time) ([]storage.Event, error) {
+	query := `
+		SELECT * FROM events
+		WHERE notify_before > 0
+		AND start_time > $1
+		AND (start_time - notify_before * INTERVAL '1 second') <= $1
+		ORDER BY start_time
+	`
+
+	var dbEvents []dbEvent
+	err := s.db.SelectContext(ctx, &dbEvents, query, now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get events to notify: %w", err)
+	}
+
+	events := make([]storage.Event, 0, len(dbEvents))
+	for _, dbEvent := range dbEvents {
+		events = append(events, *dbEvent.toEvent())
+	}
+
+	return events, nil
+}
+
+// DeleteOldEvents удаляет события старше указанной даты.
+func (s *Storage) DeleteOldEvents(ctx context.Context, before time.Time) error {
+	query := `DELETE FROM events WHERE start_time < $1`
+
+	result, err := s.db.ExecContext(ctx, query, before)
+	if err != nil {
+		return fmt.Errorf("failed to delete old events: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected > 0 {
+		fmt.Printf("Deleted %d old events\n", rowsAffected)
+	}
+
+	return nil
+}
+
+// CreateNotification добавляет уведомление в хранилище.
+func (s *Storage) CreateNotification(ctx context.Context, notification storage.Notification) error {
+	query := `
+		INSERT INTO notifications (id, event_id, title, event_time, user_id)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+
+	_, err := s.db.ExecContext(ctx, query,
+		notification.ID,
+		notification.EventID,
+		notification.Title,
+		notification.EventTime,
+		notification.UserID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create notification: %w", err)
+	}
+
+	return nil
+}

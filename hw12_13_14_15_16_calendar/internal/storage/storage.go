@@ -35,4 +35,13 @@ type Storage interface {
 
 	// ListEventsForMonth возвращает список событий на месяц начиная с указанной даты.
 	ListEventsForMonth(ctx context.Context, startDate time.Time) ([]Event, error)
+
+	// GetEventsToNotify возвращает события, о которых нужно отправить уведомление.
+	GetEventsToNotify(ctx context.Context, now time.Time) ([]Event, error)
+
+	// DeleteOldEvents удаляет события старше указанной даты.
+	DeleteOldEvents(ctx context.Context, before time.Time) error
+
+	// CreateNotification добавляет уведомление в хранилище.
+	CreateNotification(ctx context.Context, notification Notification) error
 }

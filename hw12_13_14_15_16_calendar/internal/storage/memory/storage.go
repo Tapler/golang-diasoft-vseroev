@@ -147,3 +147,41 @@ func (s *Storage) filterEventsByTimeRange(start, end time.Time) []storage.Event 
 
 	return result
 }
+
+// GetEventsToNotify возвращает события, о которых нужно отправить уведомление.
+func (s *Storage) GetEventsToNotify(_ context.Context, now time.Time) ([]storage.Event, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []storage.Event
+
+	for _, event := range s.events {
+		if event.NotifyBefore > 0 && event.StartTime.After(now) {
+			notifyTime := event.StartTime.Add(-event.NotifyBefore)
+			if !notifyTime.After(now) {
+				result = append(result, event)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// DeleteOldEvents удаляет события старше указанной даты.
+func (s *Storage) DeleteOldEvents(_ context.Context, before time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for id, event := range s.events {
+		if event.StartTime.Before(before) {
+			delete(s.events, id)
+		}
+	}
+
+	return nil
+}
+
+// CreateNotification добавляет уведомление в хранилище.
+func (s *Storage) CreateNotification(_ context.Context, _ storage.Notification) error {
+	return nil
+}
