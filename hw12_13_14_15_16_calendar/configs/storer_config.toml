@@ -1,10 +1,10 @@
 [logger]
 level = "INFO"
 
-[http]
-host = "localhost"
-port = "8080"
-
 [database]
-type = "sql"  # "memory" или "sql"
 dsn = "postgres://calendar:calendar@localhost:5432/calendar?sslmode=disable"
+
+[kafka]
+brokers = ["localhost:9092"]
+topic = "notifications"
+group_id = "calendar-storer"

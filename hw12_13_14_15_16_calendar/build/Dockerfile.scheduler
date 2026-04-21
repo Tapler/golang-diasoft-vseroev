@@ -1,4 +1,4 @@
-# Собираем в гошке
+# Многоэтапная сборка для Scheduler
 FROM golang:1.23-alpine AS builder
 
 # Установка зависимостей для сборки
@@ -13,18 +13,17 @@ RUN go mod download
 # Копирование исходников
 COPY . .
 
-# Собираем статический бинарник Go (без зависимостей на Си API),
-# иначе он не будет работать в alpine образе.
+# Сборка с оптимизацией
 ARG LDFLAGS
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="${LDFLAGS}" \
-    -o /app/calendar ./cmd/calendar
+    -o /app/scheduler ./cmd/scheduler
 
-# На выходе тонкий образ
+# Финальный образ
 FROM alpine:latest
 
 LABEL ORGANIZATION="OTUS Online Education"
-LABEL SERVICE="calendar"
+LABEL SERVICE="calendar-scheduler"
 LABEL MAINTAINERS="student@otus.ru"
 
 RUN apk --no-cache add ca-certificates tzdata
@@ -32,16 +31,16 @@ RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 
 # Копирование бинарника
-COPY --from=builder /app/calendar /app/calendar
+COPY --from=builder /app/scheduler /app/scheduler
 
 # Копирование конфигурации
-COPY ./configs/config.toml /etc/calendar/config.toml
+COPY ./configs/scheduler_config.toml /etc/calendar/scheduler_config.toml
 
 # Копирование entrypoint скрипта
 COPY ./build/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
-ENV CONFIG_FILE=/etc/calendar/config.toml
+ENV CONFIG_FILE=/etc/calendar/scheduler_config.toml
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["/app/calendar", "-config", "/etc/calendar/config.toml"]
+CMD ["/app/scheduler", "-config", "/etc/calendar/scheduler_config.toml"]

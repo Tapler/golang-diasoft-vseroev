@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: calendar-test-postgres
+    environment:
+      POSTGRES_USER: calendar
+      POSTGRES_PASSWORD: calendar
+      POSTGRES_DB: calendar
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calendar"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - test-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: calendar-test-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - test-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: calendar-test-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      - test-network
+
+  migrations:
+    image: alpine:3.18
+    container_name: calendar-test-migrations
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../migrations:/migrations
+    networks:
+      - test-network
+    command: >
+      sh -c "
+        apk add --no-cache postgresql-client curl &&
+        curl -fsSL https://raw.githubusercontent.com/pressly/goose/master/install.sh | sh &&
+        goose -dir /migrations postgres 'postgres://calendar:calendar@postgres:5432/calendar?sslmode=disable' up
+      "
+
+  calendar:
+    build:
+      context: ..
+      dockerfile: build/Dockerfile
+    container_name: calendar-test-api
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    volumes:
+      - ../configs/config.docker.toml:/etc/calendar/config.toml:ro
+    environment:
+      CONFIG_FILE: /etc/calendar/config.toml
+    networks:
+      - test-network
+
+  scheduler:
+    build:
+      context: ..
+      dockerfile: build/Dockerfile.scheduler
+    container_name: calendar-test-scheduler
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    volumes:
+      - ../configs/scheduler_config.docker.toml:/etc/calendar/scheduler_config.toml:ro
+    environment:
+      CONFIG_FILE: /etc/calendar/scheduler_config.toml
+    networks:
+      - test-network
+
+  storer:
+    build:
+      context: ..
+      dockerfile: build/Dockerfile.storer
+    container_name: calendar-test-storer
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    volumes:
+      - ../configs/storer_config.docker.toml:/etc/calendar/storer_config.toml:ro
+    environment:
+      CONFIG_FILE: /etc/calendar/storer_config.toml
+    networks:
+      - test-network
+
+  integration-tests:
+    build:
+      context: ../tests/integration
+      dockerfile: Dockerfile
+    container_name: calendar-integration-tests
+    depends_on:
+      calendar:
+        condition: service_started
+      scheduler:
+        condition: service_started
+      storer:
+        condition: service_started
+    environment:
+      CALENDAR_API_URL: "http://calendar:8080"
+      DATABASE_DSN: "postgres://calendar:calendar@postgres:5432/calendar?sslmode=disable"
+    volumes:
+      - ../tests/integration/integration_test.go:/tests/integration_test.go:ro
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge

@@ -1,0 +1,10 @@
+[logger]
+level = "INFO"
+
+[database]
+dsn = "postgres://calendar:calendar@postgres:5432/calendar?sslmode=disable"
+
+[kafka]
+brokers = ["kafka:9092"]
+topic = "notifications"
+group_id = "calendar-storer"
