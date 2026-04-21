@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
@@ -39,8 +41,11 @@ func NewServer(logger Logger, app CalendarApplication, host, port string) *Serve
 
 	mux.HandleFunc("/hello", s.helloHandler)
 
-	// Оборачиваем в middleware для логирования
-	handler := loggingMiddleware(logger)(mux)
+	// Эндпоинт для Prometheus метрик
+	mux.Handle("/metrics", promhttp.Handler())
+
+	// Оборачиваем в middleware для метрик и логирования
+	handler := loggingMiddleware(logger)(metricsMiddleware(mux))
 
 	s.server = &http.Server{
 		Addr:         fmt.Sprintf("%s:%s", host, port),

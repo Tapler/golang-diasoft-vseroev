@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/logger"
+	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/metrics"
 	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/queue"
 	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/queue/kafka"
 	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/storage"
@@ -121,6 +122,8 @@ func processEvents(
 
 	logg.Debug(fmt.Sprintf("Found %d events to check", len(events)))
 
+	metrics.EventsScannedTotal.Inc()
+
 	if len(events) == 0 {
 		return nil
 	}
@@ -139,14 +142,17 @@ func processEvents(
 		data, err := json.Marshal(notification)
 		if err != nil {
 			logg.Error(fmt.Sprintf("Failed to marshal notification: %v", err))
+			metrics.NotificationsSendErrors.Inc()
 			continue
 		}
 
 		if err := producer.SendMessage(ctx, topic, []byte(notification.EventID), data); err != nil {
 			logg.Error(fmt.Sprintf("Failed to send notification: %v", err))
+			metrics.NotificationsSendErrors.Inc()
 			continue
 		}
 
+		metrics.NotificationsSentTotal.Inc()
 		logg.Info(fmt.Sprintf("Sent notification for event %s", event.ID))
 	}
 
@@ -160,6 +166,7 @@ func cleanupOldEvents(ctx context.Context, logg *logger.Logger, stor storage.Sto
 		return fmt.Errorf("failed to delete old events: %w", err)
 	}
 
+	metrics.OldEventsDeletedTotal.Inc()
 	logg.Info("Cleaned up old events")
 	return nil
 }
