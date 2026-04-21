@@ -3,7 +3,10 @@ package internalhttp
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
+
+	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/metrics"
 )
 
 // responseWriter оборачивает http.ResponseWriter для захвата статус-кода.
@@ -66,4 +69,27 @@ func loggingMiddleware(logger Logger) func(http.Handler) http.Handler {
 			logger.Info(logMsg)
 		})
 	}
+}
+
+func metricsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		rw := newResponseWriter(w)
+
+		next.ServeHTTP(rw, r)
+
+		duration := time.Since(start)
+
+		metrics.HTTPRequestsTotal.WithLabelValues(
+			r.Method,
+			r.URL.Path,
+			strconv.Itoa(rw.statusCode),
+		).Inc()
+
+		metrics.HTTPRequestDuration.WithLabelValues(
+			r.Method,
+			r.URL.Path,
+		).Observe(duration.Seconds())
+	})
 }

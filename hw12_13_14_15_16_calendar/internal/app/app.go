@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/metrics"
 	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/storage"
 )
 
@@ -69,9 +70,11 @@ func (a *App) CreateEvent(params EventParams) error {
 	ctx := context.Background()
 	if err := a.storage.CreateEvent(ctx, event); err != nil {
 		a.logger.Error(fmt.Sprintf("Failed to create event: %v", err))
+		metrics.ErrorsTotal.WithLabelValues("create_event").Inc()
 		return fmt.Errorf("failed to create event: %w", err)
 	}
 
+	metrics.EventsCreatedTotal.Inc()
 	a.logger.Info(fmt.Sprintf("Event created successfully: id=%s", params.ID))
 	return nil
 }
@@ -93,9 +96,11 @@ func (a *App) UpdateEvent(params EventParams) error {
 	ctx := context.Background()
 	if err := a.storage.UpdateEvent(ctx, params.ID, event); err != nil {
 		a.logger.Error(fmt.Sprintf("Failed to update event: %v", err))
+		metrics.ErrorsTotal.WithLabelValues("update_event").Inc()
 		return fmt.Errorf("failed to update event: %w", err)
 	}
 
+	metrics.EventsUpdatedTotal.Inc()
 	a.logger.Info(fmt.Sprintf("Event updated successfully: id=%s", params.ID))
 	return nil
 }
@@ -107,9 +112,11 @@ func (a *App) DeleteEvent(id string) error {
 	ctx := context.Background()
 	if err := a.storage.DeleteEvent(ctx, id); err != nil {
 		a.logger.Error(fmt.Sprintf("Failed to delete event: %v", err))
+		metrics.ErrorsTotal.WithLabelValues("delete_event").Inc()
 		return fmt.Errorf("failed to delete event: %w", err)
 	}
 
+	metrics.EventsDeletedTotal.Inc()
 	a.logger.Info(fmt.Sprintf("Event deleted successfully: id=%s", id))
 	return nil
 }
@@ -122,9 +129,11 @@ func (a *App) GetEventByID(id string) (*storage.Event, error) {
 	event, err := a.storage.GetEventByID(ctx, id)
 	if err != nil {
 		a.logger.Error(fmt.Sprintf("Failed to get event: %v", err))
+		metrics.ErrorsTotal.WithLabelValues("get_event").Inc()
 		return nil, fmt.Errorf("failed to get event: %w", err)
 	}
 
+	metrics.EventsRetrievedTotal.Inc()
 	return event, nil
 }
 
@@ -136,9 +145,11 @@ func (a *App) ListEventsForDay(date time.Time) ([]storage.Event, error) {
 	events, err := a.storage.ListEventsForDay(ctx, date)
 	if err != nil {
 		a.logger.Error(fmt.Sprintf("Failed to list events for day: %v", err))
+		metrics.ErrorsTotal.WithLabelValues("list_events_day").Inc()
 		return nil, fmt.Errorf("failed to list events for day: %w", err)
 	}
 
+	metrics.EventsListedTotal.WithLabelValues("day").Inc()
 	a.logger.Debug(fmt.Sprintf("Found %d events for day", len(events)))
 	return events, nil
 }
@@ -151,9 +162,11 @@ func (a *App) ListEventsForWeek(startDate time.Time) ([]storage.Event, error) {
 	events, err := a.storage.ListEventsForWeek(ctx, startDate)
 	if err != nil {
 		a.logger.Error(fmt.Sprintf("Failed to list events for week: %v", err))
+		metrics.ErrorsTotal.WithLabelValues("list_events_week").Inc()
 		return nil, fmt.Errorf("failed to list events for week: %w", err)
 	}
 
+	metrics.EventsListedTotal.WithLabelValues("week").Inc()
 	a.logger.Debug(fmt.Sprintf("Found %d events for week", len(events)))
 	return events, nil
 }
@@ -166,9 +179,11 @@ func (a *App) ListEventsForMonth(startDate time.Time) ([]storage.Event, error) {
 	events, err := a.storage.ListEventsForMonth(ctx, startDate)
 	if err != nil {
 		a.logger.Error(fmt.Sprintf("Failed to list events for month: %v", err))
+		metrics.ErrorsTotal.WithLabelValues("list_events_month").Inc()
 		return nil, fmt.Errorf("failed to list events for month: %w", err)
 	}
 
+	metrics.EventsListedTotal.WithLabelValues("month").Inc()
 	a.logger.Debug(fmt.Sprintf("Found %d events for month", len(events)))
 	return events, nil
 }

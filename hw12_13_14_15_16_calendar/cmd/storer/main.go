@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/logger"
+	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/metrics"
 	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/queue"
 	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/queue/kafka"
 	"github.com/Tapler/golang-diasoft-vseroev/hw12_13_14_15_16_calendar/internal/storage"
@@ -84,15 +85,19 @@ func createMessageHandler(logg *logger.Logger, stor storage.Storage) queue.Messa
 	return func(ctx context.Context, message []byte) error {
 		var notification storage.Notification
 		if err := json.Unmarshal(message, &notification); err != nil {
+			metrics.NotificationsSaveErrors.Inc()
 			return fmt.Errorf("failed to unmarshal notification: %w", err)
 		}
 
+		metrics.NotificationsReceivedTotal.Inc()
 		logg.Info(fmt.Sprintf("Received notification for event %s", notification.EventID))
 
 		if err := stor.CreateNotification(ctx, notification); err != nil {
+			metrics.NotificationsSaveErrors.Inc()
 			return fmt.Errorf("failed to save notification: %w", err)
 		}
 
+		metrics.NotificationsSavedTotal.Inc()
 		logg.Info(fmt.Sprintf("Saved notification %s to database", notification.ID))
 		return nil
 	}
